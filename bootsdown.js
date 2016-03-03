@@ -83,15 +83,24 @@
 
   Bootsdown = (function() {
     function Bootsdown() {
+      var i, len, script, scripts, text;
       this.head = (document.getElementsByTagName('head'))[0];
       this.isHttps = location.protocol === 'https:';
       this.metas = document.getElementsByTagName('meta');
       this.cdn = this.getMeta('bootsdown:cdn', 'cdnjs');
       this.theme = this.getMeta('bootsdown:theme', 'basic');
       this.markdown = this.getMeta('bootsdown:markdown', 'commonmark');
+      text = '';
+      scripts = document.getElementsByTagName('script');
+      for (i = 0, len = scripts.length; i < len; i++) {
+        script = scripts[i];
+        if ('text/markdown' === script.getAttribute('type')) {
+          text = script.innerHTML.replace(/^\s*(.+)\s*$/g, '$1');
+          break;
+        }
+      }
       this.loadMarkdown(function() {
-        var text;
-        return text = document.getElementById('bootsdown');
+        return console.log(this(text));
       });
       this.loadBootstrap(function() {});
     }

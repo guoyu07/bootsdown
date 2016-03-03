@@ -104,8 +104,15 @@ class Bootsdown
         @theme = @getMeta 'bootsdown:theme', 'basic'
         @markdown = @getMeta 'bootsdown:markdown', 'commonmark'
 
+        text = ''
+        scripts = document.getElementsByTagName 'script'
+        for script in scripts
+            if 'text/markdown' is script.getAttribute 'type'
+                text = script.innerHTML.replace /^\s*(.+)\s*$/g, '$1'
+                break
+
         @loadMarkdown ->
-            text = document.getElementById 'bootsdown'
+            console.log @ text
 
 
         @loadBootstrap ->
