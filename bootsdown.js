@@ -23,6 +23,13 @@
         basic: '/twitter-bootstrap/{version}',
         bootswatch: '/bootswatch/{version}/{theme}/bootstrap.min.css'
       }
+    },
+    jsdelivr: {
+      prefix: 'https://cdn.jsdelivr.net',
+      path: {
+        basic: '/bootstrap/{version}',
+        bootswatch: '/bootswatch/{version}/{theme}/bootstrap.min.css'
+      }
     }
   };
 
@@ -30,7 +37,8 @@
 
   JQUERY_CDN = {
     cdnjs: 'https://cdnjs.cloudflare.com/ajax/libs/jquery/{version}/jquery.min.js',
-    staticfile: 'https://staticfile.qnssl.com/jquery/{version}/jquery.min.js'
+    staticfile: 'https://staticfile.qnssl.com/jquery/{version}/jquery.min.js',
+    jsdelivr: 'https://cdn.jsdelivr.net/jquery/{version}/jquery.min.js'
   };
 
   MARKDOWN_CDN = {
@@ -44,6 +52,10 @@
       commonmark: 'https://staticfile.qnssl.com/commonmark/0.22.1/commonmark.min.js',
       showdown: 'http://cdn.staticfile.org/showdown/1.3.0/showdown.min.js',
       pagedown: 'http://cdn.staticfile.org/pagedown/1.0/Markdown.Converter.min.js'
+    },
+    jsdelivr: {
+      showdown: 'https://cdn.jsdelivr.net/showdown/1.3.0/showdown.min.js',
+      maked: 'https://cdn.jsdelivr.net/marked/0.3.5/marked.min.js'
     }
   };
 
@@ -83,7 +95,7 @@
 
   Bootsdown = (function() {
     function Bootsdown() {
-      var engine, parseEventCount, parseText, parsedText, renderElement, renderEventCount, text;
+      var engine, parseEventCount, parseText, parsedText, progress, progressBar, renderElement, renderEventCount, text;
       this.head = (document.getElementsByTagName('head'))[0];
       this.isHttps = location.protocol === 'https:';
       this.metas = document.getElementsByTagName('meta');
@@ -95,8 +107,24 @@
       parsedText = null;
       parseEventCount = 0;
       renderEventCount = 0;
+      progressBar = document.createElement('div');
+      progressBar.style.position = 'absolute';
+      progressBar.style.zIndex = 99999;
+      progressBar.style.height = '3px';
+      progressBar.style.backgroundColor = '#F00';
+      progressBar.style.top = 0;
+      progressBar.style.left = 0;
+      progress = function() {
+        var percent;
+        percent = (parseEventCount + renderEventCount) * 20;
+        progressBar.style.width = percent + '%';
+        if (percent === 100) {
+          return document.body.removeChild(progressBar);
+        }
+      };
       parseText = function() {
         parseEventCount += 1;
+        progress();
         if (parseEventCount !== 2) {
           return;
         }
@@ -106,7 +134,8 @@
       renderElement = (function(_this) {
         return function() {
           renderEventCount += 1;
-          if (renderEventCount !== 2) {
+          progress();
+          if (renderEventCount !== 3) {
             return;
           }
           return _this.render(parsedText);
@@ -114,6 +143,7 @@
       })(this);
       document.addEventListener('DOMContentLoaded', function() {
         var j, len, script, scripts;
+        document.body.appendChild(progressBar);
         scripts = document.getElementsByTagName('script');
         for (j = 0, len = scripts.length; j < len; j++) {
           script = scripts[j];
@@ -129,6 +159,8 @@
         return parseText();
       });
       this.loadBootstrap(function() {
+        return renderElement();
+      }, function() {
         return renderElement();
       });
     }
@@ -196,13 +228,22 @@
       }
       link = document.createElement('link');
       this.head.appendChild(link);
-      if (cb != null) {
-        link.onload = cb;
-      }
+      link.onload = function() {
+        link.media = 'all';
+        if (cb != null) {
+          return cb();
+        }
+      };
+      link.onerror = function() {
+        link.media = 'all';
+        if (cb != null) {
+          return cb();
+        }
+      };
       link.rel = 'stylesheet';
       link.type = 'text/css';
       link.href = url;
-      return link.media = 'all';
+      return link.media = 'none';
     };
 
     Bootsdown.prototype.loadJs = function(url, cb) {
@@ -234,7 +275,7 @@
       return this.loadJs(url.replace('{version}', JQUERY_VERSION), cb);
     };
 
-    Bootsdown.prototype.loadBootstrap = function(cb) {
+    Bootsdown.prototype.loadBootstrap = function(cbJs, cbCss) {
       var cssFile, jsFile, name, parts, theme, url;
       url = BOOTSTRAP_CDN[this.cdn];
       parts = this.theme.split(':');
@@ -245,12 +286,15 @@
         name = parts[0], theme = parts[1];
       }
       cssFile = url.path[name].replace('{version}', BOOTSTRAP_VERSION[name]).replace('{theme}', theme);
+      if (parts.length === 1) {
+        cssFile += '/css/bootstrap.min.css';
+      }
       this.loadJQuery((function(_this) {
         return function() {
-          return _this.loadJs(url.prefix + jsFile, cb);
+          return _this.loadJs(url.prefix + jsFile, cbJs);
         };
       })(this));
-      return this.loadCss(url.prefix + cssFile);
+      return this.loadCss(url.prefix + cssFile, cbCss);
     };
 
     return Bootsdown;

@@ -37,6 +37,11 @@ BOOTSTRAP_CDN =
         path:
             basic: '/twitter-bootstrap/{version}'
             bootswatch: '/bootswatch/{version}/{theme}/bootstrap.min.css'
+    jsdelivr:
+        prefix: 'https://cdn.jsdelivr.net'
+        path:
+            basic: '/bootstrap/{version}'
+            bootswatch: '/bootswatch/{version}/{theme}/bootstrap.min.css'
 
 # define jquery version
 JQUERY_VERSION = '2.1.4'
@@ -45,6 +50,7 @@ JQUERY_VERSION = '2.1.4'
 JQUERY_CDN =
     cdnjs: 'https://cdnjs.cloudflare.com/ajax/libs/jquery/{version}/jquery.min.js'
     staticfile: 'https://staticfile.qnssl.com/jquery/{version}/jquery.min.js'
+    jsdelivr: 'https://cdn.jsdelivr.net/jquery/{version}/jquery.min.js'
 
 
 # define markdown cdn
@@ -58,6 +64,9 @@ MARKDOWN_CDN =
         commonmark: 'https://staticfile.qnssl.com/commonmark/0.22.1/commonmark.min.js'
         showdown: 'http://cdn.staticfile.org/showdown/1.3.0/showdown.min.js'
         pagedown: 'http://cdn.staticfile.org/pagedown/1.0/Markdown.Converter.min.js'
+    jsdelivr:
+        showdown: 'https://cdn.jsdelivr.net/showdown/1.3.0/showdown.min.js'
+        maked: 'https://cdn.jsdelivr.net/marked/0.3.5/marked.min.js'
 
 # define markdown engine
 MARKDOWN =
@@ -109,8 +118,23 @@ class Bootsdown
         parseEventCount = 0
         renderEventCount = 0
 
+        # create progressBar
+        progressBar = document.createElement 'div'
+        progressBar.style.position = 'absolute'
+        progressBar.style.zIndex = 99999
+        progressBar.style.height = '3px'
+        progressBar.style.backgroundColor = '#F00'
+        progressBar.style.top = 0
+        progressBar.style.left = 0
+
+        progress = ->
+            percent = (parseEventCount + renderEventCount) * 20
+            progressBar.style.width = percent + '%'
+            document.body.removeChild progressBar if percent is 100
+
         parseText = ->
             parseEventCount += 1
+            progress()
             return if parseEventCount isnt 2
 
             parsedText = engine text
@@ -118,11 +142,13 @@ class Bootsdown
 
         renderElement = =>
             renderEventCount += 1
-            return if renderEventCount isnt 2
+            progress()
+            return if renderEventCount isnt 3
 
             @render parsedText
 
         document.addEventListener 'DOMContentLoaded', ->
+            document.body.appendChild progressBar
             scripts = document.getElementsByTagName 'script'
 
             for script in scripts
@@ -137,6 +163,8 @@ class Bootsdown
             parseText()
 
         @loadBootstrap ->
+            renderElement()
+        , ->
             renderElement()
 
 
@@ -211,11 +239,18 @@ class Bootsdown
         link = document.createElement 'link'
         @head.appendChild link
         
-        link.onload = cb if cb?
+        link.onload = ->
+            link.media = 'all'
+            cb() if cb?
+
+        link.onerror = ->
+            link.media = 'all'
+            cb() if cb?
+
         link.rel = 'stylesheet'
         link.type = 'text/css'
         link.href = url
-        link.media = 'all'
+        link.media = 'none'
 
 
     loadJs: (url, cb = null) ->
@@ -240,7 +275,7 @@ class Bootsdown
         @loadJs (url.replace '{version}', JQUERY_VERSION), cb
 
 
-    loadBootstrap: (cb) ->
+    loadBootstrap: (cbJs, cbCss) ->
         url = BOOTSTRAP_CDN[@cdn]
         parts = @theme.split ':'
         name = @theme
@@ -253,9 +288,11 @@ class Bootsdown
         cssFile = url.path[name].replace '{version}', BOOTSTRAP_VERSION[name]
             .replace '{theme}', theme
 
+        cssFile += '/css/bootstrap.min.css' if parts.length is 1
+
         @loadJQuery =>
-            @loadJs url.prefix + jsFile, cb
-        @loadCss url.prefix + cssFile
+            @loadJs url.prefix + jsFile, cbJs
+        @loadCss url.prefix + cssFile, cbCss
 
 
 new Bootsdown
