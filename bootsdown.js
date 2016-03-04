@@ -83,36 +83,105 @@
 
   Bootsdown = (function() {
     function Bootsdown() {
-      var i, len, script, scripts, text;
+      var engine, parseEventCount, parseText, parsedText, renderElement, renderEventCount, text;
       this.head = (document.getElementsByTagName('head'))[0];
       this.isHttps = location.protocol === 'https:';
       this.metas = document.getElementsByTagName('meta');
       this.cdn = this.getMeta('bootsdown:cdn', 'cdnjs');
       this.theme = this.getMeta('bootsdown:theme', 'basic');
       this.markdown = this.getMeta('bootsdown:markdown', 'commonmark');
+      engine = null;
       text = '';
-      scripts = document.getElementsByTagName('script');
-      for (i = 0, len = scripts.length; i < len; i++) {
-        script = scripts[i];
-        if ('text/markdown' === script.getAttribute('type')) {
-          text = script.innerHTML.replace(/^\s*(.+)\s*$/g, '$1');
-          break;
+      parsedText = null;
+      parseEventCount = 0;
+      renderEventCount = 0;
+      parseText = function() {
+        parseEventCount += 1;
+        if (parseEventCount !== 2) {
+          return;
         }
-      }
-      this.loadMarkdown(function() {
-        return console.log(this(text));
+        parsedText = engine(text);
+        return renderElement();
+      };
+      renderElement = (function(_this) {
+        return function() {
+          renderEventCount += 1;
+          if (renderEventCount !== 2) {
+            return;
+          }
+          return _this.render(parsedText);
+        };
+      })(this);
+      document.addEventListener('DOMContentLoaded', function() {
+        var j, len, script, scripts;
+        scripts = document.getElementsByTagName('script');
+        for (j = 0, len = scripts.length; j < len; j++) {
+          script = scripts[j];
+          if ('text/markdown' === script.getAttribute('type')) {
+            text = script.innerHTML;
+            break;
+          }
+        }
+        return parseText();
       });
-      this.loadBootstrap(function() {});
+      this.loadMarkdown(function() {
+        engine = this;
+        return parseText();
+      });
+      this.loadBootstrap(function() {
+        return renderElement();
+      });
     }
 
+    Bootsdown.prototype.render = function(html) {
+      var k, navBar, ref, struct, v;
+      navBar = $('<div class="navbar navbar-default navbar-fixed-top"> <div class="container"> <div class="navbar-header"> <a href="#" class="navbar-brand" id="brand"></a> <button class="navbar-toggle" type="button" data-toggle="collapse" data-target="#navbar-main"> <span class="icon-bar"></span> <span class="icon-bar"></span> <span class="icon-bar"></span> </button> </div> <div class="navbar-collapse collapse" id="navbar-main"> <ul class="nav navbar-nav" id="menu"> </ul> </div> </div> </div> <div class="container" id="content"></div>').appendTo(document.body);
+      struct = this.analyzeHtml(html);
+      $('#brand').html(struct.brand);
+      console.log(navBar.height());
+      ref = struct.menu;
+      for (k in ref) {
+        v = ref[k];
+        $("<li><a href=\"#" + k + "\">" + v + "</a></li>").appendTo('#menu');
+      }
+      console.log(($('#menu')).outerHeight());
+      $(document.body).css('padding-top', navBar.outerHeight() + 20);
+      return $('#content').show();
+    };
+
+    Bootsdown.prototype.analyzeHtml = function(html) {
+      var brand, content, h1, h2, i, id, item, items, j, len, menu;
+      content = $('#content').hide().html(html);
+      h1 = $('h1').get(0);
+      if (h1) {
+        brand = ($(h1)).text();
+      }
+      if (h1) {
+        ($(h1)).hide();
+      }
+      items = $('h2');
+      menu = {};
+      for (i = j = 0, len = items.length; j < len; i = ++j) {
+        item = items[i];
+        h2 = $(item);
+        id = 'goto-' + i;
+        h2.attr('id', id);
+        menu[id] = h2.text();
+      }
+      return {
+        brand: brand,
+        menu: menu
+      };
+    };
+
     Bootsdown.prototype.getMeta = function(name, defaults) {
-      var i, len, meta, ref;
+      var j, len, meta, ref;
       if (defaults == null) {
         defaults = null;
       }
       ref = this.metas;
-      for (i = 0, len = ref.length; i < len; i++) {
-        meta = ref[i];
+      for (j = 0, len = ref.length; j < len; j++) {
+        meta = ref[j];
         if (name === meta.getAttribute('name')) {
           return meta.getAttribute('content');
         }
@@ -126,14 +195,14 @@
         cb = null;
       }
       link = document.createElement('link');
-      link.rel = 'stylesheet';
-      link.type = 'text/css';
-      link.href = url;
-      link.media = 'all';
+      this.head.appendChild(link);
       if (cb != null) {
         link.onload = cb;
       }
-      return this.head.appendChild(link);
+      link.rel = 'stylesheet';
+      link.type = 'text/css';
+      link.href = url;
+      return link.media = 'all';
     };
 
     Bootsdown.prototype.loadJs = function(url, cb) {
@@ -142,11 +211,11 @@
         cb = null;
       }
       script = document.createElement('script');
-      script.src = url;
+      this.head.appendChild(script);
       if (cb != null) {
         script.onload = cb;
       }
-      return this.head.appendChild(script);
+      return script.src = url;
     };
 
     Bootsdown.prototype.loadMarkdown = function(cb) {
@@ -172,10 +241,10 @@
       name = this.theme;
       theme = null;
       jsFile = (url.path.basic.replace('{version}', BOOTSTRAP_VERSION.basic)) + '/js/bootstrap.min.js';
-      if (parts > 1) {
+      if (parts.length > 1) {
         name = parts[0], theme = parts[1];
       }
-      cssFile = (url.path[name].replace('{version}', BOOTSTRAP_VERSION[name]).replace('{theme}', theme)) + '/css/bootstrap.min.css';
+      cssFile = url.path[name].replace('{version}', BOOTSTRAP_VERSION[name]).replace('{theme}', theme);
       this.loadJQuery((function(_this) {
         return function() {
           return _this.loadJs(url.prefix + jsFile, cb);

@@ -103,19 +103,102 @@ class Bootsdown
         @cdn = @getMeta 'bootsdown:cdn', 'cdnjs'
         @theme = @getMeta 'bootsdown:theme', 'basic'
         @markdown = @getMeta 'bootsdown:markdown', 'commonmark'
-
+        engine = null
         text = ''
-        scripts = document.getElementsByTagName 'script'
-        for script in scripts
-            if 'text/markdown' is script.getAttribute 'type'
-                text = script.innerHTML.replace /^\s*(.+)\s*$/g, '$1'
-                break
+        parsedText = null
+        parseEventCount = 0
+        renderEventCount = 0
+
+        parseText = ->
+            parseEventCount += 1
+            return if parseEventCount isnt 2
+
+            parsedText = engine text
+            renderElement()
+
+        renderElement = =>
+            renderEventCount += 1
+            return if renderEventCount isnt 2
+
+            @render parsedText
+
+        document.addEventListener 'DOMContentLoaded', ->
+            scripts = document.getElementsByTagName 'script'
+
+            for script in scripts
+                if 'text/markdown' == script.getAttribute 'type'
+                    text = script.innerHTML
+                    break
+
+            parseText()
 
         @loadMarkdown ->
-            console.log @ text
-
+            engine = @
+            parseText()
 
         @loadBootstrap ->
+            renderElement()
+
+
+    render: (html) ->
+        navBar = $ '<div class="navbar navbar-default navbar-fixed-top">
+      <div class="container">
+        <div class="navbar-header">
+          <a href="#" class="navbar-brand" id="brand"></a>
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target="#navbar-main">
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+        </div>
+        <div class="navbar-collapse collapse" id="navbar-main">
+            <ul class="nav navbar-nav" id="menu">
+            </ul>
+        </div>
+    </div>
+</div>
+<div class="container" id="content"></div>'
+            .appendTo document.body
+
+        struct = @analyzeHtml html
+        $ '#brand'
+            .html struct.brand
+        
+        console.log navBar.height()
+
+        for k, v of struct.menu
+            $ "<li><a href=\"##{k}\">#{v}</a></li>"
+                .appendTo '#menu'
+        console.log ($ '#menu').outerHeight()
+
+
+        $ document.body
+            .css 'padding-top', navBar.outerHeight() + 20
+
+        $ '#content'
+            .show()
+
+
+    analyzeHtml: (html) ->
+        content = $ '#content'
+            .hide()
+            .html html
+
+        h1 = $ 'h1'
+            .get 0
+        brand = ($ h1).text() if h1
+        ($ h1).hide() if h1
+
+        items = $ 'h2'
+        menu = {}
+
+        for item, i in items
+            h2 = $ item
+            id = 'goto-' + i
+            h2.attr 'id', id
+            menu[id] = h2.text()
+
+        {brand, menu}
 
 
     getMeta: (name, defaults = null) ->
@@ -126,21 +209,21 @@ class Bootsdown
     
     loadCss: (url, cb = null) ->
         link = document.createElement 'link'
+        @head.appendChild link
+        
+        link.onload = cb if cb?
         link.rel = 'stylesheet'
         link.type = 'text/css'
         link.href = url
         link.media = 'all'
-        link.onload = cb if cb?
-
-        @head.appendChild link
 
 
     loadJs: (url, cb = null) ->
         script = document.createElement 'script'
-        script.src = url
-        script.onload = cb if cb?
-
         @head.appendChild script
+        
+        script.onload = cb if cb?
+        script.src = url
 
 
     loadMarkdown: (cb) ->
@@ -164,13 +247,14 @@ class Bootsdown
         theme = null
         jsFile = (url.path.basic.replace '{version}', BOOTSTRAP_VERSION.basic) + '/js/bootstrap.min.js'
 
-        if parts > 1
+        if parts.length > 1
             [name, theme] = parts
 
-        cssFile = (url.path[name].replace '{version}', BOOTSTRAP_VERSION[name]
-            .replace '{theme}', theme) + '/css/bootstrap.min.css'
+        cssFile = url.path[name].replace '{version}', BOOTSTRAP_VERSION[name]
+            .replace '{theme}', theme
 
-        @loadJQuery => @loadJs url.prefix + jsFile, cb
+        @loadJQuery =>
+            @loadJs url.prefix + jsFile, cb
         @loadCss url.prefix + cssFile
 
 
