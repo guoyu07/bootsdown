@@ -134,6 +134,7 @@
       renderElement = (function(_this) {
         return function() {
           renderEventCount += 1;
+          console.log(renderEventCount);
           progress();
           if (renderEventCount !== 3) {
             return;
@@ -170,13 +171,11 @@
       navBar = $('<div class="navbar navbar-default navbar-fixed-top"> <div class="container"> <div class="navbar-header"> <a href="#" class="navbar-brand" id="brand"></a> <button class="navbar-toggle" type="button" data-toggle="collapse" data-target="#navbar-main"> <span class="icon-bar"></span> <span class="icon-bar"></span> <span class="icon-bar"></span> </button> </div> <div class="navbar-collapse collapse" id="navbar-main"> <ul class="nav navbar-nav" id="menu"> </ul> </div> </div> </div> <div class="container" id="content"></div>').appendTo(document.body);
       struct = this.analyzeHtml(html);
       $('#brand').html(struct.brand);
-      console.log(navBar.height());
       ref = struct.menu;
       for (k in ref) {
         v = ref[k];
         $("<li><a href=\"#" + k + "\">" + v + "</a></li>").appendTo('#menu');
       }
-      console.log(($('#menu')).outerHeight());
       $(document.body).css('padding-top', navBar.outerHeight() + 20);
       return $('#content').show();
     };
@@ -235,7 +234,6 @@
         }
       };
       link.onerror = function() {
-        link.media = 'all';
         if (cb != null) {
           return cb();
         }

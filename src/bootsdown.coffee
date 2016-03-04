@@ -142,6 +142,7 @@ class Bootsdown
 
         renderElement = =>
             renderEventCount += 1
+            console.log renderEventCount
             progress()
             return if renderEventCount isnt 3
 
@@ -192,12 +193,9 @@ class Bootsdown
         $ '#brand'
             .html struct.brand
         
-        console.log navBar.height()
-
         for k, v of struct.menu
             $ "<li><a href=\"##{k}\">#{v}</a></li>"
                 .appendTo '#menu'
-        console.log ($ '#menu').outerHeight()
 
 
         $ document.body
@@ -244,7 +242,6 @@ class Bootsdown
             cb() if cb?
 
         link.onerror = ->
-            link.media = 'all'
             cb() if cb?
 
         link.rel = 'stylesheet'
